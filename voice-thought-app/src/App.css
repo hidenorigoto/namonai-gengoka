@@ -63,7 +63,7 @@ body {
 .app-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 40% 60%;
+  grid-template-columns: 55% 45%;
   overflow: hidden;
 }
 
@@ -71,7 +71,7 @@ body {
 .concept-tree-panel {
   background: #fff;
   border-right: 1px solid #ddd;
-  padding: 1rem;
+  padding: 1.5rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -81,6 +81,13 @@ body {
   flex: 1;
   overflow-y: auto;
   margin-bottom: 1rem;
+}
+
+/* Controls Section */
+.controls-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .concept-item {
@@ -130,8 +137,7 @@ body {
 
 /* Voice Input */
 .voice-input {
-  border-top: 1px solid #ddd;
-  padding-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .record-button {
@@ -174,7 +180,7 @@ body {
 /* Detail Panel */
 .detail-panel {
   background: #fff;
-  padding: 2rem;
+  padding: 1.5rem;
   overflow-y: auto;
 }
 
@@ -361,20 +367,39 @@ body {
   text-decoration: underline;
 }
 
+/* Debug Section */
+.debug-section {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.debug-toggle {
+  width: 100%;
+  padding: 0.5rem;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.debug-toggle:hover {
+  background: #e8e8e8;
+}
+
 /* Debug Info */
 .debug-info {
   background: #f5f5f5;
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 1rem;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   font-size: 0.85rem;
 }
 
-.debug-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: #666;
-}
 
 .debug-info h5 {
   margin: 0.5rem 0 0.25rem 0;
@@ -420,7 +445,7 @@ body {
   border: 1px solid #2196f3;
   border-radius: 4px;
   padding: 1rem;
-  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .processing-animation {

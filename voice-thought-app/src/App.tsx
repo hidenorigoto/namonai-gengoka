@@ -18,15 +18,17 @@ function App() {
   const [apiKey, setApiKey] = useState<string | null>(ApiKeyManager.get());
   const [questions, setQuestions] = useState<string[]>([]);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedTextRef = useRef<string>('');
+  const transcribedTextRef = useRef<string>('');
 
-  const addDebugLog = (message: string) => {
+  const addDebugLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString('ja-JP');
     setDebugLog(prev => [...prev, `[${timestamp}] ${message}`].slice(-10)); // 最新10件のみ保持
     console.log(`[${timestamp}] ${message}`);
-  };
+  }, []);
 
   useEffect(() => {
     if (apiKey) {
@@ -68,30 +70,63 @@ function App() {
   };
 
   const processWithAI = useCallback(async () => {
-    if (!transcribedText || transcribedText === lastProcessedTextRef.current) {
-      addDebugLog('AI処理スキップ: テキストが変更されていません');
+    const currentText = transcribedTextRef.current;
+    
+    if (!currentText) {
+      addDebugLog('AI処理スキップ: テキストが空です');
       return;
     }
+    
+    if (currentText === lastProcessedTextRef.current) {
+      addDebugLog(`AI処理スキップ: テキストが変更されていません (現在: ${currentText.length}文字, 前回: ${lastProcessedTextRef.current.length}文字)`);
+      return;
+    }
+    
     if (!openAIService.isInitialized()) {
       addDebugLog('AI処理スキップ: OpenAIサービスが初期化されていません');
       return;
     }
 
-    addDebugLog(`AI処理開始: "${transcribedText.slice(-50)}..."`);
+    addDebugLog(`AI処理開始: "${currentText.slice(-50)}..." (${currentText.length}文字)`);
     setIsProcessing(true);
     try {
-      const parsedConcepts = await openAIService.extractConcepts(transcribedText);
+      const parsedConcepts = await openAIService.extractConcepts(currentText);
       addDebugLog(`概念抽出成功: ${parsedConcepts.length}個の概念を抽出`);
       const tree = buildConceptTree(parsedConcepts);
-      setConcepts(tree);
-      lastProcessedTextRef.current = transcribedText;
+      
+      // 既存の選択状態を維持
+      setConcepts(() => {
+        // 新しいツリーに存在する概念のみ選択状態を維持
+        const newConceptIds = new Set<string>();
+        const collectIds = (nodes: ConceptNode[]) => {
+          nodes.forEach(node => {
+            newConceptIds.add(node.id);
+            if (node.children) collectIds(node.children);
+          });
+        };
+        collectIds(tree);
+        
+        setSelectedConceptIds(prevSelected => {
+          const maintainedSelection = new Set<string>();
+          prevSelected.forEach(id => {
+            if (newConceptIds.has(id)) {
+              maintainedSelection.add(id);
+            }
+          });
+          return maintainedSelection;
+        });
+        
+        return tree;
+      });
+      
+      lastProcessedTextRef.current = currentText;
     } catch (error) {
       console.error('AI processing failed:', error);
       addDebugLog(`AI処理エラー: ${error}`);
     } finally {
       setIsProcessing(false);
     }
-  }, [transcribedText, addDebugLog]);
+  }, [addDebugLog]);
 
   const scheduleProcessing = useCallback(() => {
     if (processTimeoutRef.current) {
@@ -106,6 +141,7 @@ function App() {
       addDebugLog(`音声認識完了: "${text}"`);
       setTranscribedText(prev => {
         const newText = prev + ' ' + text;
+        transcribedTextRef.current = newText; // refも更新
         addDebugLog(`全テキスト長: ${newText.length}文字`);
         return newText;
       });
@@ -190,36 +226,47 @@ function App() {
       
       <main className="app-main">
         <div className="concept-tree-panel">
+          <div className="controls-section">
+            <VoiceInput
+              isRecording={isRecording}
+              onTranscription={handleTranscription}
+              onToggleRecording={handleToggleRecording}
+            />
+            <ProcessingIndicator 
+              isProcessing={isProcessing}
+              processedText={transcribedText}
+            />
+          </div>
+          
           <ConceptTree
             concepts={concepts}
             selectedIds={selectedConceptIds}
             onSelect={handleConceptSelect}
           />
-          <VoiceInput
-            isRecording={isRecording}
-            onTranscription={handleTranscription}
-            onToggleRecording={handleToggleRecording}
-          />
-          {/* AI処理インジケーター */}
-          <ProcessingIndicator 
-            isProcessing={isProcessing}
-            processedText={transcribedText}
-          />
           
           {/* デバッグ情報 */}
-          <div className="debug-info">
-            <h4>デバッグ情報</h4>
-            <div className="debug-stats">
-              <p>📝 認識テキスト長: {transcribedText.length}文字</p>
-              <p>🌳 抽出概念数: {concepts.length}個</p>
-              <p>🤖 AI処理中: {isProcessing ? 'はい' : 'いいえ'}</p>
-            </div>
-            <div className="debug-log">
-              <h5>ログ:</h5>
-              {debugLog.map((log, index) => (
-                <div key={index} className="log-entry">{log}</div>
-              ))}
-            </div>
+          <div className="debug-section">
+            <button 
+              className="debug-toggle"
+              onClick={() => setShowDebug(!showDebug)}
+            >
+              {showDebug ? '🔽' : '▶️'} デバッグ情報
+            </button>
+            {showDebug && (
+              <div className="debug-info">
+                <div className="debug-stats">
+                  <p>📝 認識テキスト長: {transcribedText.length}文字</p>
+                  <p>🌳 抽出概念数: {concepts.length}個</p>
+                  <p>🤖 AI処理中: {isProcessing ? 'はい' : 'いいえ'}</p>
+                </div>
+                <div className="debug-log">
+                  <h5>ログ:</h5>
+                  {debugLog.map((log, index) => (
+                    <div key={index} className="log-entry">{log}</div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         

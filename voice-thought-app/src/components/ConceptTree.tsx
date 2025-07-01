@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConceptNode } from '../types';
 
 interface ConceptTreeProps {
@@ -9,6 +9,25 @@ interface ConceptTreeProps {
 
 const ConceptTree: React.FC<ConceptTreeProps> = ({ concepts, selectedIds, onSelect }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // 概念が更新されたら全て展開する
+  useEffect(() => {
+    const getAllIds = (nodes: ConceptNode[]): string[] => {
+      const ids: string[] = [];
+      nodes.forEach(node => {
+        ids.push(node.id);
+        if (node.children && node.children.length > 0) {
+          ids.push(...getAllIds(node.children));
+        }
+      });
+      return ids;
+    };
+
+    if (concepts.length > 0) {
+      const allIds = getAllIds(concepts);
+      setExpandedIds(new Set(allIds));
+    }
+  }, [concepts]);
 
   const toggleExpand = (id: string, event: React.MouseEvent) => {
     event.stopPropagation();
