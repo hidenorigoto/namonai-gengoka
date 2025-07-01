@@ -23,6 +23,7 @@ function App() {
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedTextRef = useRef<string>('');
   const transcribedTextRef = useRef<string>('');
+  const conceptsRef = useRef<ConceptNode[]>([]);
 
   const addDebugLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString('ja-JP');
@@ -90,7 +91,7 @@ function App() {
     addDebugLog(`AI処理開始: "${currentText.slice(-50)}..." (${currentText.length}文字)`);
     setIsProcessing(true);
     try {
-      const parsedConcepts = await openAIService.extractConcepts(currentText);
+      const parsedConcepts = await openAIService.extractConcepts(currentText, conceptsRef.current);
       addDebugLog(`概念抽出成功: ${parsedConcepts.length}個の概念を抽出`);
       const tree = buildConceptTree(parsedConcepts);
       
@@ -116,6 +117,8 @@ function App() {
           return maintainedSelection;
         });
         
+        // refも更新
+        conceptsRef.current = tree;
         return tree;
       });
       
@@ -203,6 +206,11 @@ function App() {
     setApiKey(key);
     openAIService.initialize(key);
   };
+
+  // conceptsが更新されたらrefも更新
+  useEffect(() => {
+    conceptsRef.current = concepts;
+  }, [concepts]);
 
   return (
     <div className="app">

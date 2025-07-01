@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ParsedConcept } from '../types';
+import { ParsedConcept, ConceptNode } from '../types';
 
 const CONCEPT_EXTRACTION_SYSTEM_PROMPT = `
 あなたは思考の構造化を支援するアシスタントです。
@@ -31,13 +31,21 @@ class OpenAIService {
     });
   }
   
-  async extractConcepts(text: string): Promise<ParsedConcept[]> {
+  async extractConcepts(text: string, existingConcepts?: ConceptNode[]): Promise<ParsedConcept[]> {
     if (!this.client) throw new Error('OpenAI client not initialized');
     
     try {
+      // 既存の概念をフラットなリストに変換
+      const existingConceptsList = existingConcepts ? this.flattenConcepts(existingConcepts) : [];
+      
       const prompt = `
 以下のテキストから主要な概念を抽出し、インデント形式で階層化してください。
 
+${existingConceptsList.length > 0 ? `既に抽出されている概念:
+${existingConceptsList.map(c => `- ${c}`).join('\n')}
+
+重要: 既存の概念は維持し、新しい概念や関連性がある場合のみ追加・発展させてください。
+` : ''}
 テキスト:
 "${text}"
 
@@ -127,6 +135,20 @@ ${context ? `文脈: "${context}"` : ''}
   
   isInitialized(): boolean {
     return this.client !== null;
+  }
+  
+  private flattenConcepts(nodes: ConceptNode[]): string[] {
+    const concepts: string[] = [];
+    
+    const traverse = (node: ConceptNode) => {
+      concepts.push(node.text);
+      if (node.children) {
+        node.children.forEach(child => traverse(child));
+      }
+    };
+    
+    nodes.forEach(node => traverse(node));
+    return concepts;
   }
 }
 
