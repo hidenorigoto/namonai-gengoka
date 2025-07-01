@@ -89,14 +89,14 @@ function App() {
     }
   }, [scheduleProcessing]);
 
-  const findConceptById = (nodes: ConceptNode[], id: string): ConceptNode | null => {
+  const findConceptById = useCallback((nodes: ConceptNode[], id: string): ConceptNode | null => {
     for (const node of nodes) {
       if (node.id === id) return node;
       const found = findConceptById(node.children, id);
       if (found) return found;
     }
     return null;
-  };
+  }, []);
 
   const handleConceptSelect = useCallback(async (conceptId: string) => {
     const newSelected = new Set(selectedConceptIds);
@@ -121,7 +121,7 @@ function App() {
     }
     
     setSelectedConceptIds(newSelected);
-  }, [concepts, selectedConceptIds]);
+  }, [concepts, selectedConceptIds, findConceptById]);
 
   const getSelectedConcepts = (): ConceptNode[] => {
     const selected: ConceptNode[] = [];

@@ -21,7 +21,7 @@ const ConceptTree: React.FC<ConceptTreeProps> = ({ concepts, selectedIds, onSele
     setExpandedIds(newExpanded);
   };
 
-  const renderConcept = (concept: ConceptNode, depth: number = 0): JSX.Element => {
+  const renderConcept = (concept: ConceptNode, depth: number = 0): React.ReactElement => {
     const isSelected = selectedIds.has(concept.id);
     const isExpanded = expandedIds.has(concept.id);
     const hasChildren = concept.children && concept.children.length > 0;
