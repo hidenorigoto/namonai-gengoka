@@ -159,7 +159,7 @@ const CustomEdge = ({
           strokeDasharray: style.strokeDasharray,
           fill: 'none'
         }}
-        markerEnd="url(#arrowclosed)"
+        markerEnd="url(#arrow)"
       />
       {data?.label && (
         <EdgeLabelRenderer>
@@ -289,7 +289,7 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
           target: node.id,
           type: 'relation',
           data: { label: relationLabel },
-          markerEnd: 'arrowclosed'
+          markerEnd: 'arrow'
         });
       }
 
@@ -304,7 +304,7 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
               type: 'relation',
               data: { label: relation.label },
               style: { stroke: '#999', strokeDasharray: '5 5' },
-              markerEnd: 'arrowclosed'
+              markerEnd: 'arrow'
             });
           }
         });
@@ -382,21 +382,13 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
         nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={false}
-        defaultEdgeOptions={{
-          markerEnd: {
-            type: 'arrowclosed',
-            width: 12,
-            height: 12,
-            color: '#999'
-          }
-        }}
       >
         <defs>
           <marker
-            id="arrowclosed"
-            markerWidth="12"
-            markerHeight="12"
-            refX="6"
+            id="arrow"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
             refY="3"
             orient="auto"
             markerUnits="strokeWidth"
