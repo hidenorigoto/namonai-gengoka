@@ -3,13 +3,14 @@ import { ParsedConcept, ConceptNode } from '../types';
 
 const CONCEPT_EXTRACTION_SYSTEM_PROMPT = `
 あなたは思考の構造化を支援するアシスタントです。
-ユーザーの発話から重要な概念を抽出し、階層構造として整理してください。
+ユーザーの発話から重要な概念を抽出し、それらの関係性を明示してください。
 
 ルール:
-1. 最大3階層まで
-2. 1つの親に対して最大5つの子概念
-3. 抽象的な概念を上位に、具体的な概念を下位に配置
+1. 単語、フレーズ、文レベルで概念を抽出
+2. 階層制限なし
+3. 概念間の関係をラベル付きで表現
 4. 同じ概念の重複を避ける
+5. 既存概念との関連を優先
 `;
 
 const QUESTION_GENERATION_SYSTEM_PROMPT = `
@@ -39,21 +40,24 @@ class OpenAIService {
       const existingConceptsList = existingConcepts ? this.flattenConcepts(existingConcepts) : [];
       
       const prompt = `
-以下のテキストから主要な概念を抽出し、インデント形式で階層化してください。
+以下のテキストから概念を抽出し、関係性も含めて構造化してください。
 
 ${existingConceptsList.length > 0 ? `既に抽出されている概念:
 ${existingConceptsList.map(c => `- ${c}`).join('\n')}
 
-重要: 既存の概念は維持し、新しい概念や関連性がある場合のみ追加・発展させてください。
+重要: 既存の概念との関連を優先し、新しい概念や関係性を追加してください。
 ` : ''}
 テキスト:
 "${text}"
 
-出力例:
-- 概念名
-  - 下位概念1
-  - 下位概念2
-    - さらに詳細な概念
+出力形式:
+- 概念A
+  - 概念B [関係: の詳細]
+  - 概念C [関係: によって]
+- 概念D
+  - 概念E [関係: のため]
+
+※ 関係ラベルの例: の詳細、によって、のため、の種類、を含む、の要素、の理由、の方法、の結果、の例
 `;
       
       const response = await this.client.chat.completions.create({
@@ -113,17 +117,29 @@ ${context ? `文脈: "${context}"` : ''}
   
   private parseConceptResponse(response: string): ParsedConcept[] {
     const lines = response.split('\n').filter(line => line.trim());
+    const concepts: ParsedConcept[] = [];
     
-    return lines.map((line, index) => {
+    lines.forEach((line, index) => {
       const level = Math.floor(line.search(/\S/) / 2);
-      const text = line.replace(/^[-\s]+/, '').trim();
+      let text = line.replace(/^[-\s]+/, '').trim();
       
-      return {
+      // 関係ラベルの抽出
+      let relationLabel = '';
+      const relationMatch = text.match(/\[\u95a2係:\s*(.+?)\]/);
+      if (relationMatch) {
+        relationLabel = relationMatch[1];
+        text = text.replace(/\s*\[\u95a2\u4fc2:.+?\]/, '').trim();
+      }
+      
+      concepts.push({
         id: `concept-${Date.now()}-${index}`,
         text,
-        level
-      };
+        level,
+        relationLabel
+      });
     });
+    
+    return concepts;
   }
   
   private parseQuestions(content: string): string[] {

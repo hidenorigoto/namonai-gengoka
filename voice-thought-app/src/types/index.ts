@@ -1,8 +1,14 @@
+export interface ConceptRelation {
+  targetId: string;
+  label: string;
+}
+
 export interface ConceptNode {
   id: string;
   text: string;
   level: number;
   children: ConceptNode[];
+  relations?: ConceptRelation[];
   metadata?: {
     createdAt: Date;
     mentions: number;
@@ -23,4 +29,5 @@ export interface ParsedConcept {
   text: string;
   level: number;
   id: string;
+  relationLabel?: string;
 }

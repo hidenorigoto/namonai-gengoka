@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import VoiceInput from './components/VoiceInput';
-import ConceptDiagram from './components/ConceptDiagram';
+import ConceptDiagramReactFlow from './components/ConceptDiagramReactFlow';
+import ConceptDiagramForceLayout from './components/ConceptDiagramForceLayout';
 import ConceptDetail from './components/ConceptDetail';
 import ApiKeyModal from './components/ApiKeyModal';
 import ProcessingIndicator from './components/ProcessingIndicator';
@@ -19,6 +20,7 @@ function App() {
   const [questions, setQuestions] = useState<string[]>([]);
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [layoutType, setLayoutType] = useState<'dagre' | 'force'>('force');
   
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedTextRef = useRef<string>('');
@@ -41,6 +43,7 @@ function App() {
   const buildConceptTree = (parsedConcepts: ParsedConcept[]): ConceptNode[] => {
     const nodes: ConceptNode[] = [];
     const nodeStack: ConceptNode[] = [];
+    const nodeMap = new Map<string, ConceptNode>();
 
     parsedConcepts.forEach(parsed => {
       const node: ConceptNode = {
@@ -48,11 +51,14 @@ function App() {
         text: parsed.text,
         level: parsed.level,
         children: [],
+        relations: [],
         metadata: {
           createdAt: new Date(),
           mentions: 1
         }
       };
+
+      nodeMap.set(node.id, node);
 
       while (nodeStack.length > 0 && nodeStack[nodeStack.length - 1].level >= parsed.level) {
         nodeStack.pop();
@@ -61,7 +67,17 @@ function App() {
       if (nodeStack.length === 0) {
         nodes.push(node);
       } else {
-        nodeStack[nodeStack.length - 1].children.push(node);
+        const parent = nodeStack[nodeStack.length - 1];
+        parent.children.push(node);
+        
+        // 関係性ラベルがある場合は relations に追加
+        if (parsed.relationLabel) {
+          parent.relations = parent.relations || [];
+          parent.relations.push({
+            targetId: node.id,
+            label: parsed.relationLabel
+          });
+        }
       }
 
       nodeStack.push(node);
@@ -135,8 +151,8 @@ function App() {
     if (processTimeoutRef.current) {
       clearTimeout(processTimeoutRef.current);
     }
-    addDebugLog('AI処理を10秒後にスケジュール');
-    processTimeoutRef.current = setTimeout(processWithAI, 10000);
+    addDebugLog('AI処理を3秒後にスケジュール');
+    processTimeoutRef.current = setTimeout(processWithAI, 3000);
   }, [processWithAI, addDebugLog]);
 
   const handleTranscription = useCallback((text: string, isFinal: boolean) => {
@@ -246,11 +262,37 @@ function App() {
             />
           </div>
           
-          <ConceptDiagram
-            concepts={concepts}
-            selectedIds={selectedConceptIds}
-            onSelect={handleConceptSelect}
-          />
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ marginRight: '1rem' }}>レイアウト:</label>
+            <select 
+              value={layoutType} 
+              onChange={(e) => setLayoutType(e.target.value as 'dagre' | 'force')}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                backgroundColor: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="force">Force-directed (複雑なネットワーク向け)</option>
+              <option value="dagre">Dagre (階層構造向け)</option>
+            </select>
+          </div>
+          
+          {layoutType === 'dagre' ? (
+            <ConceptDiagramReactFlow
+              concepts={concepts}
+              selectedIds={selectedConceptIds}
+              onSelect={handleConceptSelect}
+            />
+          ) : (
+            <ConceptDiagramForceLayout
+              concepts={concepts}
+              selectedIds={selectedConceptIds}
+              onSelect={handleConceptSelect}
+            />
+          )}
           
           {/* デバッグ情報 */}
           <div className="debug-section">
