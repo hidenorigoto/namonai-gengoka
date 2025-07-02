@@ -10,8 +10,6 @@ import ReactFlow, {
   Handle,
   Position,
   EdgeLabelRenderer,
-  getBezierPath,
-  BaseEdge,
   NodeChange,
   applyNodeChanges
 } from 'reactflow';
@@ -55,36 +53,114 @@ const CustomNode = ({ data, selected }: { data: any; selected: boolean }) => {
           ({data.mentions}回)
         </div>
       )}
+      {/* 複数のハンドルポジションを用意して動的に選択 */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Right} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Top} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
   );
 };
 
-// カスタムエッジコンポーネント（関係性ラベル付き）
+// ノード間の最適な接続位置を計算する関数
+const getOptimalConnectionPoints = (
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+  nodeWidth = 140,
+  nodeHeight = 60
+) => {
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  if (distance === 0) return { sourceX, sourceY, targetX, targetY };
+  
+  // 正規化された方向ベクトル
+  const dirX = dx / distance;
+  const dirY = dy / distance;
+  
+  // 楕円形のノード境界を考慮した接続点計算
+  const sourceRadiusX = nodeWidth / 2;
+  const sourceRadiusY = nodeHeight / 2;
+  const targetRadiusX = nodeWidth / 2;
+  const targetRadiusY = nodeHeight / 2;
+  
+  // 楕円との交点を計算
+  const sourceDistanceToEdge = Math.sqrt(
+    (sourceRadiusX * sourceRadiusY) / 
+    (sourceRadiusY * sourceRadiusY * dirX * dirX + sourceRadiusX * sourceRadiusX * dirY * dirY)
+  );
+  
+  const targetDistanceToEdge = Math.sqrt(
+    (targetRadiusX * targetRadiusY) / 
+    (targetRadiusY * targetRadiusY * dirX * dirX + targetRadiusX * targetRadiusX * dirY * dirY)
+  );
+  
+  // 接続点を計算
+  const newSourceX = sourceX + dirX * sourceDistanceToEdge;
+  const newSourceY = sourceY + dirY * sourceDistanceToEdge;
+  const newTargetX = targetX - dirX * targetDistanceToEdge;
+  const newTargetY = targetY - dirY * targetDistanceToEdge;
+  
+  return {
+    sourceX: newSourceX,
+    sourceY: newSourceY,
+    targetX: newTargetX,
+    targetY: newTargetY
+  };
+};
+
+// カスタムエッジコンポーネント（動的接続位置付き）
 const CustomEdge = ({
   sourceX,
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   data,
-  style = {},
-  markerEnd
+  style = {}
 }: any) => {
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition
-  });
+  // 最適な接続点を計算
+  const {
+    sourceX: optimalSourceX,
+    sourceY: optimalSourceY,
+    targetX: optimalTargetX,
+    targetY: optimalTargetY
+  } = getOptimalConnectionPoints(sourceX, sourceY, targetX, targetY);
+  
+  // 滑らかな曲線パスを作成（ベジェ曲線）
+  const dx = optimalTargetX - optimalSourceX;
+  const dy = optimalTargetY - optimalSourceY;
+  
+  // 制御点を計算（線の方向に垂直な方向にオフセット）
+  const controlX1 = optimalSourceX + dx * 0.25 + dy * 0.1;
+  const controlY1 = optimalSourceY + dy * 0.25 - dx * 0.1;
+  const controlX2 = optimalTargetX - dx * 0.25 + dy * 0.1;
+  const controlY2 = optimalTargetY - dy * 0.25 - dx * 0.1;
+  
+  const edgePath = `M ${optimalSourceX},${optimalSourceY} C ${controlX1},${controlY1} ${controlX2},${controlY2} ${optimalTargetX},${optimalTargetY}`;
+  
+  // ラベルの位置を中央に設定
+  const labelX = (optimalSourceX + optimalTargetX) / 2;
+  const labelY = (optimalSourceY + optimalTargetY) / 2;
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <path
+        d={edgePath}
+        style={{
+          stroke: style.stroke || '#999',
+          strokeWidth: style.strokeWidth || 2,
+          strokeDasharray: style.strokeDasharray,
+          fill: 'none'
+        }}
+        markerEnd="url(#arrowclosed)"
+      />
       {data?.label && (
         <EdgeLabelRenderer>
           <div
@@ -97,7 +173,8 @@ const CustomEdge = ({
               fontSize: '11px',
               border: '1px solid #ddd',
               pointerEvents: 'all',
-              cursor: 'default'
+              cursor: 'default',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
             }}
             className="nodrag nopan"
           >
@@ -197,7 +274,10 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
           label: node.text,
           mentions: node.metadata?.mentions || 1
         },
-        position: { x: Math.random() * 600, y: Math.random() * 400 }
+        position: { x: Math.random() * 600, y: Math.random() * 400 },
+        // 動的ハンドル位置のためにsourcePosition/targetPositionを削除
+        sourcePosition: undefined,
+        targetPosition: undefined
       });
 
       // 親子関係のエッジを追加
@@ -208,7 +288,8 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
           source: parentId,
           target: node.id,
           type: 'relation',
-          data: { label: relationLabel }
+          data: { label: relationLabel },
+          markerEnd: 'arrowclosed'
         });
       }
 
@@ -222,7 +303,8 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
               target: relation.targetId,
               type: 'relation',
               data: { label: relation.label },
-              style: { stroke: '#999', strokeDasharray: '5 5' }
+              style: { stroke: '#999', strokeDasharray: '5 5' },
+              markerEnd: 'arrowclosed'
             });
           }
         });
@@ -300,7 +382,28 @@ const ConceptDiagramForceLayout: React.FC<ConceptDiagramForceLayoutProps> = ({
         nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={false}
+        defaultEdgeOptions={{
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 12,
+            height: 12,
+            color: '#999'
+          }
+        }}
       >
+        <defs>
+          <marker
+            id="arrowclosed"
+            markerWidth="12"
+            markerHeight="12"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L0,6 L9,3 z" fill="#999"/>
+          </marker>
+        </defs>
         <Background color="#aaa" gap={16} />
         <Controls />
         <MiniMap 
