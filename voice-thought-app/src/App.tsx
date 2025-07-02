@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import VoiceInput from './components/VoiceInput';
-import ConceptTree from './components/ConceptTree';
+import ConceptDiagram from './components/ConceptDiagram';
 import ConceptDetail from './components/ConceptDetail';
 import ApiKeyModal from './components/ApiKeyModal';
 import ProcessingIndicator from './components/ProcessingIndicator';
@@ -246,7 +246,7 @@ function App() {
             />
           </div>
           
-          <ConceptTree
+          <ConceptDiagram
             concepts={concepts}
             selectedIds={selectedConceptIds}
             onSelect={handleConceptSelect}
